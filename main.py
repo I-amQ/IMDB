@@ -29,6 +29,24 @@ position_right = int(screen_width / 2 - window_width / 2)
 root.geometry(f"{window_width}x{window_height}+{position_right}+{position_top}")
 
 
+def on_select_movies(id):
+
+    # Create new window to show actor movies
+    movie_info_window = Toplevel(root)
+    movie_info_window.title(IMDB.show_name(id) + "'s movies")
+    movie_info_window.configure(background='Gray')  # Set the background color of the info window
+
+    movies = IMDB.get_movies(id)
+
+    text = tk.Text(movie_info_window, wrap='word', font=("Helvetica", 12), bg='black',
+                   fg='white')  # Set the background and foreground color of the text widget
+    for i, movie in enumerate(movies):
+        text.insert('end', str(i) + ". " + movie + "\n\n\n")
+    text.configure(state='disabled')
+    text.pack(expand=True, fill='both')
+    text.tag_configure("center", justify='center')
+
+
 def on_select(id):
 
     description = IMDB.show_info(id)
@@ -53,12 +71,26 @@ def on_select(id):
     label.image = img  # Keep a reference to the image
     label.pack()
 
+    button_frame = tk.Frame(info_window)
+    button_frame.pack()
+
+    movies_button = tk.Button(button_frame, text="Movies", command=lambda: on_select_movies(id))
+    movies_button.pack(side=tk.LEFT)
+
+    movies_button = tk.Button(button_frame, text="Genres")
+    movies_button.pack(side=tk.LEFT)
+
+    movies_button = tk.Button(button_frame, text="Awards")
+    movies_button.pack(side=tk.LEFT)
+
     text = tk.Text(info_window, wrap='word', font=("Helvetica", 12), bg='black',
                    fg='white')  # Set the background and foreground color of the text widget
     text.insert('end', description)
     text.configure(state='disabled')
     text.pack(expand=True, fill='both')
     text.tag_configure("center", justify='center')
+
+
 
 
 frame = tk.Frame(root, bg='yellow')  # Set the background color of the frame
