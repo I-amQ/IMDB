@@ -1,5 +1,6 @@
 import base64
 import io
+import time
 
 from selenium.common import NoSuchElementException
 from selenium.webdriver.support import expected_conditions as EC
@@ -17,11 +18,8 @@ WINDOW_SIZE = "1920,1080"
 chrome_options = Options()
 #chrome_options.add_argument("--headless")
 chrome_options.add_argument("--window-size=%s" % WINDOW_SIZE)
-
-chrome_options.binary_location = "C:/Program Files/Google/Chrome/Application/chrome.exe"
+#chrome_options.binary_location = "C:/Program Files/Google/Chrome/Application/chrome.exe"
 web_driver = webdriver.Chrome(options=chrome_options)
-
-
 
 from urllib.request import Request, urlopen
 
@@ -131,12 +129,17 @@ def scrape_all_time_movies(description_url):
 
     #try:
     WebDriverWait(web_driver, 100).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="__next"]/div/div/div[2]/div/button[1]'))).click()
+
+    #clicking decline cookies to make content visible
+
+
+
     #decline_cookie_btn = web_driver.find_element(By.XPATH, '')
     #decline_cookie_btn.click()
     #except NoSuchElementException:
     #    pass
     #web_driver.execute_script("arguments[0].scrollIntoView();", EC.visibility_of_element_located((By.XPATH, '//*[@id="accordion-item-actor-previous-projects"]/div/div/span/button')))
-    web_driver.execute_script("window.scrollTo(0, document.body.scrollHeight/2);")
+    #web_driver.execute_script("window.scrollTo(0, document.body.scrollHeight/2);")
 
     try:
         (WebDriverWait(web_driver, 10).until(EC.visibility_of_element_located((By.XPATH,
@@ -162,9 +165,60 @@ def scrape_all_time_movies(description_url):
 
     #button.click()
 
+
+    #Clicking all possible expand for visible content
+
+    try:
+        xpath = "//label[@role='button' and @aria-label='Expand Previous']/span/svg"
+        elements = web_driver.find_elements(By.XPATH,xpath)
+        for element in elements:
+            element.location_once_scrolled_into_view
+            element.click()
+    except NoSuchElementException:
+        print("Expand Previous not found, moving on...")
+
+    try:
+        xpath = "//label[@role='button' and @aria-label='Expand Upcoming']/span/svg"
+        elements = elements = web_driver.find_elements(By.XPATH,xpath)
+        for element in elements:
+            element.location_once_scrolled_into_view
+            element.click()
+    except NoSuchElementException:
+        print("Expand Upcoming not found, moving on...")
+
+
+    SCROLL_PAUSE_TIME = 2
+
+    # Get scroll height
+    last_height = web_driver.execute_script("return document.body.scrollHeight")
+
+    while True:
+        # Scroll down to bottom
+        web_driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+
+        time.sleep(SCROLL_PAUSE_TIME)
+
+        # Calculate new scroll height and compare with last scroll height
+        new_height = web_driver.execute_script("return document.body.scrollHeight")
+        if new_height == last_height:
+            break
+        last_height = new_height
+
+
+    #web_driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+
     soup = BeautifulSoup(web_driver.page_source, 'html.parser')
-    actor_movies_section = soup.find('div', {'class': 'sc-6703147-3 jZGlkr'})
-    movies_tags = actor_movies_section.find_all('a',{'class': 'ipc-metadata-list-summary-item__t'})
+    #actor_movies_section = soup.find('div', {'class': 'sc-6703147-3 jZGlkr'})
+    movies_tags = soup.find_all('a',{'class': 'ipc-metadata-list-summary-item__t'})
+
+    #print("Before cleaning duplicated",len(movies_tags))
+
+    #movies_tags = list(dict.fromkeys(movies_tags))
+
+    #print("After cleaning duplicated", len(movies_tags))
+
+
+
 
     movies = [movie.text.strip() for movie in movies_tags]
 
