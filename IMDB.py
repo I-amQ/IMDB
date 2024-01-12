@@ -1,6 +1,7 @@
 import base64
 import io
 import time
+import re
 
 from selenium.common import NoSuchElementException
 from selenium.webdriver.support import expected_conditions as EC
@@ -209,7 +210,7 @@ def scrape_all_time_movies(description_url):
 
     soup = BeautifulSoup(web_driver.page_source, 'html.parser')
     #actor_movies_section = soup.find('div', {'class': 'sc-6703147-3 jZGlkr'})
-    movies_tags = soup.find_all('a',{'class': 'ipc-metadata-list-summary-item__t'})
+    #movies_tags = soup.find_all('a',{'class': 'ipc-metadata-list-summary-item__t'})
 
     #print("Before cleaning duplicated",len(movies_tags))
 
@@ -220,9 +221,45 @@ def scrape_all_time_movies(description_url):
 
 
 
-    movies = [movie.text.strip() for movie in movies_tags]
+    #movies = [movie.text.strip() for movie in movies_tags]
 
-    return movies
+    # Find all movie containers
+    movie_containers = soup.find_all('div', {'class': 'ipc-metadata-list-summary-item__c'})
+
+
+    movies = []
+
+    for container in movie_containers:
+        movie = {}
+
+        # Find and store movie title
+        title_tag = container.find('a', {'class': 'ipc-metadata-list-summary-item__t'})
+        movie['title'] = title_tag.text if title_tag else None
+
+        # Find and store movie year
+        year_tag = container.find('span', {'class': 'ipc-metadata-list-summary-item__li'})
+        movie['year'] = year_tag.text if year_tag else None
+
+        # Find and store movie rating
+        rating_tag = container.find('span', {
+            'class': 'ipc-rating-star ipc-rating-star--base ipc-rating-star--imdb ipc-rating-star-group--imdb'})
+        movie['rating'] = rating_tag.text if rating_tag else None
+
+        movies.append(movie)
+
+    # Remove duplicates
+    movies = [dict(t) for t in set(tuple(movie.items()) for movie in movies)]
+
+    # Sort by year
+    movies.sort(key=lambda x: re.search(r'\b\d{4}(?:-\d{4})?\b', x['year']).group(0) if x['year'] and re.search(
+        r'\b\d{4}(?:-\d{4})?\b', x['year']) else '0000')
+
+    # Merge movie details into strings
+    movies_str = [f"{movie['title']} {movie['rating']} {movie['year']}" for movie in movies]
+
+    print(movies_str)
+
+    return movies_str
 
 
 def scrape_average_rating(description_url):
