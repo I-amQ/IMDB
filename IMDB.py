@@ -18,10 +18,11 @@ from selenium.webdriver.support.wait import WebDriverWait
 
 #WINDOW_SIZE = "1920,1080"
 #chrome_options = Options()
-#chrome_options.add_argument("--headless")
 #chrome_options.add_argument("--window-size=%s" % WINDOW_SIZE)
-#chrome_options.binary_location = "C:/Program Files/Google/Chrome/Application/chrome.exe"
+####chrome_options.binary_location = "C:/Program Files/Google/Chrome/Application/chrome.exe" # only used when having trouble running in Windows
 #web_driver = webdriver.Chrome(options=chrome_options)
+
+#uncommand the single # when trying to scrape data, otherwise redundant
 
 from urllib.request import Request, urlopen
 
@@ -179,15 +180,9 @@ def scrape_all_time_movies(description_url):
 
     global web_driver
     site = description_url
-    #print(description_url)
-    #hdr = {'User-Agent': 'Mozilla/5.0'}
-    #req = Request(site, headers=hdr)
-    #page = urlopen(req)
-    #soup = BeautifulSoup(page, 'html.parser')
 
     web_driver.delete_all_cookies()
     web_driver.get(site)
-    #wait = WebDriverWait(web_driver, 10)
 
     web_driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
     #try:
