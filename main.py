@@ -1,7 +1,7 @@
 import base64
 import io
 import tkinter as tk
-from tkinter import Toplevel
+from tkinter import Toplevel, Label
 
 from PIL import Image, ImageTk
 
@@ -30,7 +30,6 @@ root.geometry(f"{window_width}x{window_height}+{position_right}+{position_top}")
 
 
 def on_select_movies(id):
-
     # Create new window to show actor movies
     movie_info_window = Toplevel(root)
     movie_info_window.title(IMDB.show_name(id) + "'s movies")
@@ -38,13 +37,25 @@ def on_select_movies(id):
 
     movies = IMDB.get_movies(id)
 
-    text = tk.Text(movie_info_window, wrap='word', font=("Helvetica", 12), bg='black',
-                   fg='white')  # Set the background and foreground color of the text widget
+    # Create labels for each movie and place them in the grid
     for i, movie in enumerate(movies):
-        text.insert('end', str(i) + ". " + movie + "\n\n\n")
-    text.configure(state='disabled')
-    text.pack(expand=True, fill='both')
-    text.tag_configure("center", justify='center')
+        # Create a label for the movie title
+        title_label = Label(movie_info_window, text=movie[1], font=("Helvetica", 12), bg='black', fg='white')
+        title_label.grid(row=i, column=0, sticky='w')
+
+        # Create a label for the movie rating
+        rating_label = Label(movie_info_window, text=movie[2], font=("Helvetica", 12), bg='black', fg='white')
+        rating_label.grid(row=i, column=1, sticky='w')
+
+        # Create a label for the movie year
+        year_label = Label(movie_info_window, text=movie[3], font=("Helvetica", 12), bg='black', fg='white')
+        year_label.grid(row=i, column=2, sticky='w')
+
+    # Configure the grid
+    movie_info_window.grid_columnconfigure(0, weight=1)
+    movie_info_window.grid_columnconfigure(1, weight=1)
+    movie_info_window.grid_columnconfigure(2, weight=1)
+    movie_info_window.grid_rowconfigure(0, weight=1)
 
 
 def on_select(id):

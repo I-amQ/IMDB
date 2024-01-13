@@ -10,6 +10,7 @@ import requests
 from PIL import Image
 from bs4 import BeautifulSoup
 import psycopg2
+from psycopg2 import IntegrityError
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
@@ -89,13 +90,13 @@ def get_movies(id):
 
     conn = psycopg2.connect(dbname='IMDB_INFO', user='postgres', password='admin')
     cur = conn.cursor()
-    query = 'SELECT movies FROM "Actors" WHERE "ID" = ' + str(id)
+    query = 'SELECT * FROM "Movies" WHERE "actor_id" = ' + str(id)
     cur.execute(query)
     rows = cur.fetchone()
     cur.close()
     conn.close()
 
-    return rows[0]
+    return rows
 
 def scrape_full_description(description_url):
 
@@ -238,12 +239,19 @@ def scrape_all_time_movies(description_url):
 
         # Find and store movie year
         year_tag = container.find('span', {'class': 'ipc-metadata-list-summary-item__li'})
-        movie['year'] = year_tag.text if year_tag else None
+        movie['year'] = year_tag.text if year_tag else "N/A"
 
         # Find and store movie rating
         rating_tag = container.find('span', {
             'class': 'ipc-rating-star ipc-rating-star--base ipc-rating-star--imdb ipc-rating-star-group--imdb'})
         movie['rating'] = rating_tag.text if rating_tag else None
+
+        # Find and store movie genre
+        if rating_tag is not None:
+            genre_tag = rating_tag.find_next('span')
+            movie['genre'] = genre_tag.text if genre_tag else "N/A"
+        else:
+            movie['genre'] = "N/A"
 
         movies.append(movie)
 
@@ -255,11 +263,11 @@ def scrape_all_time_movies(description_url):
         r'\b\d{4}(?:-\d{4})?\b', x['year']) else '0000')
 
     # Merge movie details into strings
-    movies_str = [f"{movie['title']} {movie['rating']} {movie['year']}" for movie in movies]
+    movies_str = [f"{movie['title']} {movie['rating']} {movie['year']} {movie['genre']}" for movie in movies]
 
     print(movies_str)
 
-    return movies_str
+    return movies
 
 
 def scrape_average_rating(description_url):
@@ -285,20 +293,23 @@ def scrape_data():
 
     actors = soup.find_all('div', class_='lister-item mode-detail')
 
+    #print("actors: ", actors)
+
     if actors is not None:
         cur.execute('''
-            TRUNCATE TABLE "Actors" RESTART IDENTITY;
+            TRUNCATE TABLE "Actors" RESTART IDENTITY CASCADE;
         ''')
 
-        for actor in actors:
-
+        for actor_id, actor in enumerate(actors, start=1):
             # Get the actor name
             name = actor.find('h3').find('a').text.strip()
+
             # Get the actor description
             bio_link = actor.find('h3').find('a', href = True)
             description_url = "https://www.imdb.com" + bio_link['href'].split("?")[0] + "/bio"
             print(description_url)
             description = scrape_full_description(description_url)
+
             movies_link = "https://www.imdb.com" + bio_link['href'].split("?")[0] + "/"
             print(movies_link)
             movies = scrape_all_time_movies(movies_link)
@@ -327,10 +338,22 @@ def scrape_data():
                 img_str = None
 
             cur.execute('''
-                    INSERT INTO "Actors" (name, description, image, movies) VALUES (%s, %s, %s, %s)
-                ''', (name, description, img_str,(movies,)))
+                    INSERT INTO "Actors" (name, description, image) VALUES (%s, %s, %s)
+                ''', (name, description, img_str))
 
             conn.commit()
+
+
+            for movie in movies:
+                try:
+                    cur.execute('''
+                                    INSERT INTO "Movies" (actor_id, title, rating, year, genre) VALUES (%s, %s, %s, %s, %s)
+                                ''', (actor_id, movie['title'], movie['rating'], movie['year'], movie['genre']))
+
+                    conn.commit()
+                except IntegrityError:
+                    conn.rollback()
+
 
     cur.close()
     conn.close()
@@ -338,17 +361,9 @@ def scrape_data():
 
 class IMDB:
 
-    def all_time_movies(self, name):
-        # TODO: Implement this method
-
-
-
-        pass
 
     def awards(self, name):
         # TODO: Implement this method
-
-
 
         pass
 
