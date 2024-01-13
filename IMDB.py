@@ -28,7 +28,7 @@ from urllib.request import Request, urlopen
 def list_actors():
     conn = psycopg2.connect(dbname='IMDB_INFO', user='postgres', password='admin')
     cur = conn.cursor()
-    cur.execute('SELECT * FROM "Actors"')
+    cur.execute('SELECT * FROM public."Actors"ORDER BY "ID" ASC ;')
     rows = cur.fetchall()
 
     actor_names = []
@@ -90,13 +90,45 @@ def get_movies(id):
 
     conn = psycopg2.connect(dbname='IMDB_INFO', user='postgres', password='admin')
     cur = conn.cursor()
+    #actor_id, title, rating , year, genre, thumbnail
     query = 'SELECT * FROM "Movies" WHERE "actor_id" = ' + str(id)
     cur.execute(query)
-    rows = cur.fetchone()
+    rows = cur.fetchall()
     cur.close()
     conn.close()
 
     return rows
+
+def get_genre(id):
+
+    conn = psycopg2.connect(dbname='IMDB_INFO', user='postgres', password='admin')
+    cur = conn.cursor()
+    query = 'SELECT genre FROM "Movies" WHERE "actor_id" = ' + str(id)
+    cur.execute(query)
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    result = set()
+
+    for row in rows:
+        if row[0] != "N/A": result.add(row[0])
+
+    return result
+
+def get_average_rating(id):
+    conn = psycopg2.connect(dbname='IMDB_INFO', user='postgres', password='admin')
+    cur = conn.cursor()
+    query = 'SELECT rating FROM "Movies" WHERE "actor_id" = ' + str(id)
+    cur.execute(query)
+    rows = cur.fetchall()
+
+    result_arr = []
+
+    for i in range(0,len(rows)): result_arr.append(rows[i][0])
+
+    return sum(result_arr)/len(result_arr)
+
 
 def scrape_full_description(description_url):
 
@@ -129,8 +161,9 @@ def scrape_all_time_movies(description_url):
     web_driver.get(site)
     #wait = WebDriverWait(web_driver, 10)
 
+    web_driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
     #try:
-    WebDriverWait(web_driver, 100).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="__next"]/div/div/div[2]/div/button[1]'))).click()
+    WebDriverWait(web_driver, 50).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="__next"]/div/div/div[2]/div/button[1]'))).click()
 
     #clicking decline cookies to make content visible
 
@@ -144,7 +177,7 @@ def scrape_all_time_movies(description_url):
     #web_driver.execute_script("window.scrollTo(0, document.body.scrollHeight/2);")
 
     try:
-        (WebDriverWait(web_driver, 10).until(EC.visibility_of_element_located((By.XPATH,
+        (WebDriverWait(web_driver, 20).until(EC.visibility_of_element_located((By.XPATH,
                                                                               '/html/body/div[2]/main/div/section[1]/div/section/div/div[1]/div[4]/section[2]/div[5]/div[2]/div/div[4]/div/div/span/button')))
                                                         .click())
     except Exception:
@@ -237,21 +270,36 @@ def scrape_all_time_movies(description_url):
         title_tag = container.find('a', {'class': 'ipc-metadata-list-summary-item__t'})
         movie['title'] = title_tag.text if title_tag else None
 
-        # Find and store movie year
-        year_tag = container.find('span', {'class': 'ipc-metadata-list-summary-item__li'})
-        movie['year'] = year_tag.text if year_tag else "N/A"
+        second_line_container = container.find('div',{'class': 'sc-9814c2de-0 bPMyhM'})
+
+        if second_line_container is None: continue
+        
 
         # Find and store movie rating
-        rating_tag = container.find('span', {
+        rating_tag = second_line_container.find('span', {
             'class': 'ipc-rating-star ipc-rating-star--base ipc-rating-star--imdb ipc-rating-star-group--imdb'})
         movie['rating'] = rating_tag.text if rating_tag else None
 
+        if rating_tag is None: continue
+
+        # Find and store movie year ( depending on rating tag )
+        year_tag = container.find('span', {'class': 'ipc-metadata-list-summary-item__li'})
+        movie['year'] = year_tag.text if year_tag else "N/A"
+
         # Find and store movie genre
-        if rating_tag is not None:
-            genre_tag = rating_tag.find_next('span')
-            movie['genre'] = genre_tag.text if genre_tag else "N/A"
-        else:
-            movie['genre'] = "N/A"
+        # if rating_tag is not None:
+        #genre_tag = rating_tag.find_next('span')
+
+        genre_tag = rating_tag.find_next('span') 
+
+        #genre_tag = spans[-1] if spans is not None else None
+        #genre_tag = second_line_container.find(lambda tag: tag.name == 'span' and not tag.attrs)
+        movie['genre'] = genre_tag.text if genre_tag and genre_tag in second_line_container.children else "N/A"
+
+        #print(genre_tag)
+
+        #print(genre_tag in second_line_container.children)
+
 
         movies.append(movie)
 
@@ -269,13 +317,6 @@ def scrape_all_time_movies(description_url):
 
     return movies
 
-
-def scrape_average_rating(description_url):
-        # TODO: Implement this method
-
-
-
-        pass
 
 def scrape_data():
     global web_driver
@@ -343,11 +384,11 @@ def scrape_data():
 
             conn.commit()
 
-
+            #actor_id, title, rating , year, genre, thumbnail
             for movie in movies:
                 try:
                     cur.execute('''
-                                    INSERT INTO "Movies" (actor_id, title, rating, year, genre) VALUES (%s, %s, %s, %s, %s)
+                                    INSERT INTO "Movies" (actor_id, title, rating, year, genre) VALUES (%s, %s, %s, %s, %s) 
                                 ''', (actor_id, movie['title'], movie['rating'], movie['year'], movie['genre']))
 
                     conn.commit()
@@ -357,6 +398,7 @@ def scrape_data():
 
     cur.close()
     conn.close()
+    web_driver.quit()
 
 
 class IMDB:
