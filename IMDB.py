@@ -16,12 +16,12 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.wait import WebDriverWait
 
-WINDOW_SIZE = "1920,1080"
-chrome_options = Options()
+#WINDOW_SIZE = "1920,1080"
+#chrome_options = Options()
 #chrome_options.add_argument("--headless")
-chrome_options.add_argument("--window-size=%s" % WINDOW_SIZE)
+#chrome_options.add_argument("--window-size=%s" % WINDOW_SIZE)
 #chrome_options.binary_location = "C:/Program Files/Google/Chrome/Application/chrome.exe"
-web_driver = webdriver.Chrome(options=chrome_options)
+#web_driver = webdriver.Chrome(options=chrome_options)
 
 from urllib.request import Request, urlopen
 
@@ -116,6 +116,7 @@ def get_genre(id):
 
     return result
 
+
 def get_average_rating(id):
     conn = psycopg2.connect(dbname='IMDB_INFO', user='postgres', password='admin')
     cur = conn.cursor()
@@ -128,6 +129,33 @@ def get_average_rating(id):
     for i in range(0,len(rows)): result_arr.append(rows[i][0])
 
     return sum(result_arr)/len(result_arr)
+
+
+def get_awards(id):
+
+    conn = psycopg2.connect(dbname='IMDB_INFO', user='postgres', password='admin')
+    cur = conn.cursor()
+    query = 'SELECT "awards" FROM "Actors" WHERE "ID" = ' + str(id)
+    cur.execute(query)
+    awards_return = cur.fetchone()
+
+    result = []
+
+    for award in awards_return[0]: result.append(award)
+
+    return result
+
+def get_top10(id):
+    conn = psycopg2.connect(dbname='IMDB_INFO', user='postgres', password='admin')
+    cur = conn.cursor()
+    query = 'SELECT "title","rating" FROM "Movies" WHERE "actor_id" = ' + str(id) + ' ORDER BY rating DESC limit 10'
+    cur.execute(query)
+    top10_ret = cur.fetchall()
+
+    result_titles = [top10_ret[i][0] for i in range(0,len(top10_ret))]
+    result_ratings = [top10_ret[i][1] for i in range(0,len(top10_ret))]
+
+    return (result_titles, result_ratings)
 
 
 def scrape_full_description(description_url):
@@ -168,13 +196,6 @@ def scrape_all_time_movies(description_url):
     #clicking decline cookies to make content visible
 
 
-
-    #decline_cookie_btn = web_driver.find_element(By.XPATH, '')
-    #decline_cookie_btn.click()
-    #except NoSuchElementException:
-    #    pass
-    #web_driver.execute_script("arguments[0].scrollIntoView();", EC.visibility_of_element_located((By.XPATH, '//*[@id="accordion-item-actor-previous-projects"]/div/div/span/button')))
-    #web_driver.execute_script("window.scrollTo(0, document.body.scrollHeight/2);")
 
     try:
         (WebDriverWait(web_driver, 20).until(EC.visibility_of_element_located((By.XPATH,
@@ -243,19 +264,7 @@ def scrape_all_time_movies(description_url):
     #web_driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
 
     soup = BeautifulSoup(web_driver.page_source, 'html.parser')
-    #actor_movies_section = soup.find('div', {'class': 'sc-6703147-3 jZGlkr'})
-    #movies_tags = soup.find_all('a',{'class': 'ipc-metadata-list-summary-item__t'})
-
-    #print("Before cleaning duplicated",len(movies_tags))
-
-    #movies_tags = list(dict.fromkeys(movies_tags))
-
-    #print("After cleaning duplicated", len(movies_tags))
-
-
-
-
-    #movies = [movie.text.strip() for movie in movies_tags]
+    
 
     # Find all movie containers
     movie_containers = soup.find_all('div', {'class': 'ipc-metadata-list-summary-item__c'})
@@ -318,6 +327,44 @@ def scrape_all_time_movies(description_url):
     return movies
 
 
+def scrape_awards(awards_link):
+
+    global web_driver
+    site = awards_link
+
+    web_driver.delete_all_cookies()
+    web_driver.get(site)
+
+    web_driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+    
+    WebDriverWait(web_driver, 50).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="__next"]/div/div/div[2]/div/button[1]'))).click()
+
+    soup = BeautifulSoup(web_driver.page_source, 'html.parser')
+
+    results = []
+
+    # Find all list items
+    list_items = soup.find_all('li', {'class': 'ipc-metadata-list-summary-item sc-15fc9ae6-1 kZSOHj'})
+
+    for li in list_items:
+        # Find the year and award category
+        award_info = li.find('a', {'class': 'ipc-metadata-list-summary-item__t'})
+        if award_info is not None:
+            year, award_category = award_info.text.split(' ', 1)
+
+        # Find the movie name
+        movie_link = li.find('a', {'class': 'ipc-metadata-list-summary-item__li ipc-metadata-list-summary-item__li--link'})
+        if movie_link is not None:
+            movie_name = movie_link.text
+
+        # Combine the information
+        result = f'{year} - {award_category} - {movie_name}'
+        results.append(result)
+        print(result)
+
+    return results
+
+
 def scrape_data():
     global web_driver
     # Connect to your postgres DB
@@ -355,6 +402,10 @@ def scrape_data():
             print(movies_link)
             movies = scrape_all_time_movies(movies_link)
 
+            awards_link = "https://www.imdb.com" + bio_link['href'].split("?")[0] + "/awards"
+            print(awards_link)
+            awards = scrape_awards(awards_link)
+
             # Get the actor image
             image_div = actor.find('div', class_='lister-item-image')
 
@@ -379,8 +430,8 @@ def scrape_data():
                 img_str = None
 
             cur.execute('''
-                    INSERT INTO "Actors" (name, description, image) VALUES (%s, %s, %s)
-                ''', (name, description, img_str))
+                    INSERT INTO "Actors" (name, description, image, awards) VALUES (%s, %s, %s, %s)
+                ''', (name, description, img_str, (awards,)))
 
             conn.commit()
 
@@ -399,29 +450,3 @@ def scrape_data():
     cur.close()
     conn.close()
     web_driver.quit()
-
-
-class IMDB:
-
-
-    def awards(self, name):
-        # TODO: Implement this method
-
-        pass
-
-    def movie_genre(self, name):
-        # TODO: Implement this method
-
-
-
-        pass
-
-
-
-    def top_movies(self, name):
-        # TODO: Implement this method
-
-
-
-
-        pass

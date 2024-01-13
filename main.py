@@ -50,8 +50,6 @@ def on_select_movies(id):
 
     movies = IMDB.get_movies(id)
 
-    print(movies)
-
     heading_enum_label = Label(frame, text="No", font=("Helvetica Bold", 12), bg='black', fg='white')
     heading_enum_label.grid(row=0, column=0, sticky='w', padx=10, pady=10)
 
@@ -99,11 +97,114 @@ def on_select_genres(id):
     genres = IMDB.get_genre(id)  
 
     genre_window = Toplevel(root)
+    genre_window.title(IMDB.show_name(id) + "'s Genres")
+    genre_window.minsize(200, 250)
 
     # Add a label for each genre
     for genre in genres:
         label = tk.Label(genre_window, text=genre)
         label.pack()
+
+def on_select_awards(id):
+    awards = IMDB.get_awards(id)
+
+    awards_window = tk.Toplevel(root)
+    awards_window.title(IMDB.show_name(id) + "'s Awards")
+    awards_window.minsize(window_width, window_height)
+
+    # Create a canvas and a vertical scrollbar attached to it
+    vscrollbar = tk.Scrollbar(awards_window, orient='vertical')
+    vscrollbar.pack(fill='y', side='right')
+
+    canvas = tk.Canvas(awards_window, bg='gray', yscrollcommand=vscrollbar.set)
+    canvas.pack(side='left', fill='both', expand=True)
+
+    vscrollbar.config(command=canvas.yview)
+
+    # Create a frame inside the canvas to hold the labels
+    frame = tk.Frame(canvas, bg='gray')
+    canvas.create_window((0,0), window=frame, anchor='nw')
+
+    heading_enum = Label(frame, text="No.", font=("Helvetica Bold", 12), bg='black', fg='white')
+    heading_enum.grid(row=0, column=0, sticky='w', padx=10, pady=10)
+
+    heading_award = Label(frame, text="Awards", font=("Helvetica Bold", 12), bg='black', fg='white')
+    heading_award.grid(row=0, column=1, sticky='w', padx=10, pady=10)
+    
+
+    # Add a label for each award
+    for i,award in enumerate(awards, start = 1):
+        
+        enum_lable = tk.Label(frame, text=str(i), anchor='center')
+        label = tk.Label(frame, text=award, anchor='center')
+        #label.pack(pady=10, expand=True)  # Add vertical padding
+
+        enum_lable.grid(row=i, column=0,sticky='w', padx=10, pady=10)
+        label.grid(row=i, column=1,sticky='w', padx=10, pady=10)
+        frame.columnconfigure(0, weight=1)
+        frame.rowconfigure(0, weight=1)
+
+    # Update scrollregion after starting 'mainloop'
+    # when all widgets are in canvas
+    frame.update_idletasks()
+    canvas.config(scrollregion=canvas.bbox('all'))
+
+
+def on_select_top_10(id):
+
+    top10 = IMDB.get_top10(id)
+    movie_titles,movie_ratings = top10
+
+
+    top10_window = tk.Toplevel(root)
+    top10_window.title(IMDB.show_name(id) + "'s Top 10 Movies")
+    top10_window.minsize(window_width, window_height)
+
+    # Create a canvas and a vertical scrollbar attached to it
+    vscrollbar = tk.Scrollbar(top10_window, orient='vertical')
+    vscrollbar.pack(fill='y', side='right')
+
+    canvas = tk.Canvas(top10_window, bg='gray', yscrollcommand=vscrollbar.set)
+    canvas.pack(side='left', fill='both', expand=True)
+
+    vscrollbar.config(command=canvas.yview)
+
+    # Create a frame inside the canvas to hold the labels
+    frame = tk.Frame(canvas, bg='gray')
+    canvas.create_window((0,0), window=frame, anchor='nw')
+
+    heading_enum = Label(frame, text="No.", font=("Helvetica Bold", 12), bg='black', fg='white')
+    heading_enum.grid(row=0, column=0, sticky='w', padx=10, pady=10)
+
+    heading_title = Label(frame, text="Movie Title", font=("Helvetica Bold", 12), bg='black', fg='white')
+    heading_title.grid(row=0, column=1, sticky='w', padx=10, pady=10)
+
+    heading_rating = Label(frame, text="Movie Rating", font=("Helvetica Bold", 12), bg='black', fg='white')
+    heading_rating.grid(row=0, column=2, sticky='w', padx=10, pady=10)
+    
+
+    # Add a label for each award
+    for i, movie_title in enumerate(movie_titles, start = 0):
+
+        movie_rating = movie_ratings[i]
+        
+        enum_label = tk.Label(frame, text=str(i+1), anchor='center')
+        title_label = tk.Label(frame, text=movie_title, anchor='center')
+        rating_label = tk.Label(frame, text=movie_rating, anchor='center')
+        #label.pack(pady=10, expand=True)  # Add vertical padding
+
+        enum_label.grid(row=i+1, column=0,sticky='w', padx=10, pady=10)
+        title_label.grid(row=i+1, column=1,sticky='w', padx=10, pady=10)
+        rating_label.grid(row=i+1, column=2,sticky='w', padx=10, pady=10)
+        frame.columnconfigure(0, weight=1)
+        frame.rowconfigure(0, weight=1)
+
+    # Update scrollregion after starting 'mainloop'
+    # when all widgets are in canvas
+    frame.update_idletasks()
+    canvas.config(scrollregion=canvas.bbox('all'))
+
+
 
 
 def on_select(id):
@@ -140,15 +241,18 @@ def on_select(id):
     movies_button = tk.Button(button_frame, text="Movies", command=lambda: on_select_movies(id))
     movies_button.pack(side=tk.LEFT)
 
-    movies_button = tk.Button(button_frame, text="Genres", command=lambda: on_select_genres(id))
-    movies_button.pack(side=tk.LEFT)
+    genres_button = tk.Button(button_frame, text="Genres", command=lambda: on_select_genres(id))
+    genres_button.pack(side=tk.LEFT)
 
-    movies_button = tk.Button(button_frame, text="Awards")
-    movies_button.pack(side=tk.LEFT)
+    awards_button = tk.Button(button_frame, text="Awards", command=lambda: on_select_awards(id))
+    awards_button.pack(side=tk.LEFT)
+
+    top10_button = tk.Button(button_frame, text="TOP_10", command=lambda: on_select_top_10(id))
+    top10_button.pack(side=tk.LEFT)
 
     text = tk.Text(info_window, wrap='word', font=("Helvetica", 12), bg='black',
                    fg='white')  # Set the background and foreground color of the text widget
-    text.insert('end', description)
+    text.insert('end', description,'both')
     text.configure(state='disabled')
     text.pack(expand=True, fill='both')
     text.tag_configure("center", justify='center')
